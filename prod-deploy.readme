@@ -1,0 +1,45 @@
+#prod deployment
+#check profiles configured
+aws configure list-profiles
+aws configure list
+#Export profile to use
+export AWS_PROFILE=<profile-name>
+1. create cluster
+eksctl create cluster \
+ --name prod-cluster \
+ --without-nodegroup
+ --region ap-south-1
+
+2. check cluster OIDC
+aws eks describe-cluster --name test-cluster --query "cluster.identity.oidc.issuer" --output text
+aws iam list-open-id-connect-providers | grep <output text>
+#if the above command returns empty do below
+eksctl utils associate-iam-oidc-provider --cluster prod-cluster --approve
+
+3. create node group 
+eksctl create nodegroup \
+  --cluster prod-cluster \
+  --name prod-nodegrp \
+  --node-type t3a.large \
+  --nodes 3 \
+  --nodes-min 1 \
+  --nodes-max 3
+
+#to check resources
+  kubectl describe nodes | grep -A 3 "Name:\|Resource .*Requests .*Limits" | grep -v "Roles:"
+#to scale
+eksctl scale nodegroup --cluster=prod-cluster --nodes=5 —name=prod-nodegrp
+
+#key step to enable connection to cluster API server via kubectl
+aws eks --region <ap-south-1> update-kubeconfig --name <prod-cluster>
+kubectl config view
+kubectl config current-context
+kubectl config use-context <cluster-name>
+
+4. create nginx controller and other related resources
+5. create filebeat
+6. create logstash instance
+7. create config map and secrets
+8. create NLB (of nginx)
+9. create ingress
+10 create deployments
